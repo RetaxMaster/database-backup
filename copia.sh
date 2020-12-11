@@ -36,20 +36,22 @@ function run() {
         assert_is_installed "aws"
 }
 
-function update_files(){
-	local NUMBER_OF_BACKUPS="$(ls $HOME/mysql | wc -l)"
+function upload_to_s3(){
+	local ALL_AMAZON_BACKUPS="$(aws s3 ls s3://database-back --recursive | awk '{print $4}')"
+	local NUMBER_OF_BACKUPS="$(echo "$ALL_AMAZON_BACKUPS" | wc -l)"
 
 	echo "Encontrados ${NUMBER_OF_BACKUPS} archivos"
+# Ya listamos la cantidad de archivos que hay en amazon, ahora solo falta eliminar el ultimo y subir el mas reciente, para esto solo tenemos que  tener un unico archivo (el mas reciente) en la carpeta mysql, subirlo y borrarlo de la carpeta mysql despues de que se haya subido
 
-	if [[ $NUMBER_OF_BACKUPS -gt 7 ]]; then
-		# Lista los archivos dentro de la carpeta $HOME/mysql, los ordena de menor a mayor y solo toma el primero
-		local OLDER_FILE="$(ls $HOME/mysql | sort | head -n 1)"
-		echo "Older file: ${OLDER_FILE}"
-		rm $HOME/mysql/$OLDER_FILE
-		echo "Eliminado ${OLDER_FILE}"
-		# Recursividad para eliminar todos hasta que solo queden 7
-		update_files
-	fi
+#	if [[ $NUMBER_OF_BACKUPS -gt 7 ]]; then
+#		# Lista los archivos dentro de la carpeta $HOME/mysql, los ordena de menor a mayor y solo toma el primero
+#		local OLDER_FILE="$(ls $HOME/mysql | sort | head -n 1)"
+#		echo "Older file: ${OLDER_FILE}"
+#		rm $HOME/mysql/$OLDER_FILE
+#		echo "Eliminado ${OLDER_FILE}"
+#		# Recursividad para eliminar todos hasta que solo queden 7
+#		update_files
+#	fi
 
 }
 
@@ -76,8 +78,11 @@ function make_backup() {
 
 	duration=$SECONDS
 	echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
-	update_files
-	aws s3 cp $BAK "s3://$BUCKET" --recursive
+
+	upload_to_s3
+
+
+#	aws s3 cp $BAK "s3://$BUCKET" --recursive
 }
 
 run
