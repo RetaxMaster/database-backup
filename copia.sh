@@ -8,6 +8,8 @@ set -e
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_NAME="$(basename "$0")"
+DATABASE=$DB_BCKP_DATABASE
+BUCKET=$DB_BCKP_BUCKET/$DATABASE
 
 function assert_is_installed() {
 	local readonly name="$1"
@@ -36,22 +38,23 @@ function run() {
         assert_is_installed "aws"
 }
 
-function upload_to_s3(){
-	local ALL_AMAZON_BACKUPS="$(aws s3 ls s3://database-back --recursive | awk '{print $4}')"
+function check_files(){
+	# Listo todo los archivos que hay en el bucket, al resultado le hago un split de espacios en blanco y obtengo la posicion 4 (El nombre del archivo), a este resultado le hago otro split a traves del caracter "/" para obtener unicamente el nombre
+	local ALL_AMAZON_BACKUPS="$(aws s3 ls s3://$BUCKET --recursive | awk '{print $4}' | awk -F/ '{print $NF}')"
 	local NUMBER_OF_BACKUPS="$(echo "$ALL_AMAZON_BACKUPS" | wc -l)"
+	local OLDER_FILE="$(echo "$ALL_AMAZON_BACKUPS" | sort | head -n 1)"
 
-	echo "Encontrados ${NUMBER_OF_BACKUPS} archivos"
-# Ya listamos la cantidad de archivos que hay en amazon, ahora solo falta eliminar el ultimo y subir el mas reciente, para esto solo tenemos que  tener un unico archivo (el mas reciente) en la carpeta mysql, subirlo y borrarlo de la carpeta mysql despues de que se haya subido
+	echo "Encontrados ${NUMBER_OF_BACKUPS} archivos almacenados en S3"
 
-#	if [[ $NUMBER_OF_BACKUPS -gt 7 ]]; then
-#		# Lista los archivos dentro de la carpeta $HOME/mysql, los ordena de menor a mayor y solo toma el primero
-#		local OLDER_FILE="$(ls $HOME/mysql | sort | head -n 1)"
-#		echo "Older file: ${OLDER_FILE}"
-#		rm $HOME/mysql/$OLDER_FILE
-#		echo "Eliminado ${OLDER_FILE}"
-#		# Recursividad para eliminar todos hasta que solo queden 7
-#		update_files
-#	fi
+	# Si ya hay mas de 6 archivos, empezamos a eliminar los archivos viejos, 6 porque al escribir el nuevo archivo será el archiv numero 7
+	if [[ $NUMBER_OF_BACKUPS -gt 6 ]]; then
+
+		local OLDER_FILE="$(echo "$ALL_AMAZON_BACKUPS" | sort | head -n 1)"
+		echo "Archivo mas viejo $OLDER_FILE"
+		aws s3 rm "s3://$BUCKET/$OLDER_FILE"
+		echo "Eliminado de S3: $OLDER_FILE"
+
+        fi
 
 }
 
@@ -66,11 +69,11 @@ function make_backup() {
 	local PASS=$DB_BCKP_PASS
 	local HOST=$DB_BCKP_HOST
 	local DATABASE=$DB_BCKP_DATABASE
-	local BUCKET=$DB_BCKP_BUCKET
 
 	[ ! -d "$BAK" ] && mkdir -p "$BAK"
 
-	FILE=$BAK/$DATABASE.$NOW-$(date +"%T").gz
+	FILENAME="$DATABASE-$NOW-$(date +"%H_%M_%S").gz"
+	FILE=$BAK/$FILENAME
 
 	local SECONDS=0
 
@@ -79,11 +82,17 @@ function make_backup() {
 	duration=$SECONDS
 	echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
 
-	upload_to_s3
+	# Checamos los archivos para ver si hay mas de 7 y se elimina el mas viejo
+	check_files
 
+	# Subimos el nuevo backup que acabamos de crear
+	echo "Empezando la subida a S3"
+	aws s3 cp $BAK/$FILENAME s3://$BUCKET/$FILENAME
 
-#	aws s3 cp $BAK "s3://$BUCKET" --recursive
+	#Eliminamos el archivo de este servidor
+	echo "Eliminando el archivo de este servidor"
+	rm $FILE
+
 }
-
 run
 make_backup
