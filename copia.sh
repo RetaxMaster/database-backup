@@ -11,6 +11,8 @@ readonly SCRIPT_NAME="$(basename "$0")"
 DATABASE=$DB_BCKP_DATABASE
 BUCKET=$DB_BCKP_BUCKET/$DATABASE
 
+echo "Starting execute with database: $DATABASE in the bucket $BUCKET" >> log.log
+
 function assert_is_installed() {
 	local readonly name="$1"
 
