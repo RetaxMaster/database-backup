@@ -13,6 +13,10 @@ function end_script_excecution() {
 	echo "Terminando la ejecución del script" >> $BACKUP_LOG_FILENAME
 	echo "----------------------------------" >> $BACKUP_LOG_FILENAME
 	echo "" >> $BACKUP_LOG_FILENAME
+}
+
+function end_script_excecution_with_error() {
+	end_script_excecution
 	exit 1;
 }
 
@@ -46,7 +50,7 @@ function validate_env_variables() {
 	fi
 
 	if [ "$FLAG" = false ]; then
-		end_script_excecution
+		end_script_excecution_with_error
 	fi
 
 }
@@ -74,7 +78,7 @@ function assert_is_installed() {
 
 	if [[ ! $(command -v $name) ]]; then
 		log_error "El binario '$name' es requerido pero no está instalado"
-		end_script_excecution
+		end_script_excecution_with_error
 	fi
 
 }
@@ -151,3 +155,4 @@ echo "----------------------------------" >> $BACKUP_LOG_FILENAME
 validate_env_variables
 validate_installed_binaries
 make_backup
+end_script_excecution
