@@ -112,6 +112,8 @@ function make_backup() {
 
 	[ ! -d $BAK ] && mkdir -p $BAK
 
+	log_info "Empezando la copia de seguridad para la base de datos $DATABASE en el bucket $BUCKET"
+
 	FILENAME="$DATABASE-$NOW.gz"
 	FILE=$BAK/$FILENAME
 
