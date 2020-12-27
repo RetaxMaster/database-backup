@@ -6,36 +6,48 @@ set -e
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_NAME="$(basename "$0")"
-readonly BACKUP_FILENAME="database_backup.log"
+readonly BACKUP_LOG_FILENAME="database_backup.log"
 
 function end_script_excecution() {
-	echo "" >> $BACKUP_FILENAME
+	echo "----------------------------------" >> $BACKUP_LOG_FILENAME
+	echo "Terminando la ejecución del script" >> $BACKUP_LOG_FILENAME
+	echo "----------------------------------" >> $BACKUP_LOG_FILENAME
+	echo "" >> $BACKUP_LOG_FILENAME
 	exit 1;
 }
 
 function validate_env_variables() {
 
+	local FLAG=true
+
 	if [ -z "$DB_BCKP_USER" ]; then
 		log_error "No se ha definido una variable de entorno con el usuario de la base de datos."
+		FLAG=false
 	fi
 
 	if [ -z "$DB_BCKP_PASS" ]; then
 		log_error "No se ha definido una variable de entorno con la contraseña de la base de datos."
+		FLAG=false
 	fi
 
 	if [ -z "$DB_BCKP_HOST" ]; then
 		log_error "No se ha definido una variable de entorno con el host de la base de datos."
+		FLAG=false
 	fi
 
 	if [ -z "$DB_BCKP_DATABASE" ]; then
 		log_error "No se ha definido una variable de entorno con el nombre de la base de datos."
+		FLAG=false
 	fi
 
 	if [ -z "$DB_BCKP_BUCKET" ]; then
 		log_error "No se ha definido una variable de entorno con el nombre del bucket de Amazon S3 para hacer el backup."
+		FLAG=false
 	fi
 
-	end_script_excecution
+	if [ "$FLAG" = false ]; then
+		end_script_excecution
+	fi
 
 }
 
@@ -53,7 +65,7 @@ function log() {
 	local readonly message="$2"
 	local readonly timestamp=$(date +"%Y-%m-%d %H:%M:%S")
 	
-	echo "${timestamp} [${level}] [$SCRIPT_NAME] $message" >> $BACKUP_FILENAME
+	echo "${timestamp} [${level}] [$SCRIPT_NAME] $message" >> $BACKUP_LOG_FILENAME
 }
 
 function assert_is_installed() {
@@ -110,9 +122,9 @@ function make_backup() {
 	local readonly DATABASE=$DB_BCKP_DATABASE
 	local readonly BUCKET=$DB_BCKP_BUCKET/$DATABASE
 
-	[ ! -d $BAK ] && mkdir -p $BAK
-
 	log_info "Empezando la copia de seguridad para la base de datos $DATABASE en el bucket $BUCKET"
+	
+	[ ! -d $BAK ] && mkdir -p $BAK
 
 	FILENAME="$DATABASE-$NOW.gz"
 	FILE=$BAK/$FILENAME
@@ -132,7 +144,9 @@ function make_backup() {
 
 }
 
-log_info "Ejecutando el script"
+echo "----------------------------------" >> $BACKUP_LOG_FILENAME
+echo "Ejecutando el script" >> $BACKUP_LOG_FILENAME
+echo "----------------------------------" >> $BACKUP_LOG_FILENAME
 
 validate_env_variables
 validate_installed_binaries
