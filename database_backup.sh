@@ -118,7 +118,7 @@ function make_backup() {
 	local readonly MYSQL=$(which mysql)
 	local readonly MYSQLDUMP=$(which mysqldump)
 	local readonly GZIP=$(which gzip)
-	local readonly NOW=$(date +"%d-%m-%Y-%H_%M_%S")
+	local readonly NOW=$(date +"%Y-%m-%d-%H_%M_%S")
 
 	local readonly USER=$DB_BCKP_USER
 	local readonly PASS=$DB_BCKP_PASS
